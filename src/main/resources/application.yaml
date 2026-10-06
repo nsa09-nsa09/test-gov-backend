@@ -1,0 +1,20 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: alem
+
+keycloak:
+  server-url: http://localhost:8180
+  realm: GovApps
+  client-id: test-app
+  admin:
+    realm: master
+    client-id: admin-cli
+    username: admin
+    password: admin
+
+cors:
+  allowed-origins:
+    - http://localhost:5173
