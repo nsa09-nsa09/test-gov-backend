@@ -96,4 +96,34 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.needs_2fa_setup").value(true))
                 .andExpect(jsonPath("$.setup_url").value("http://kc/setup"));
     }
+
+    @Test
+    void setupTotpLink_withValidCredentials_returnsDirectQrUrl() throws Exception {
+        com.example.alem.service.KeycloakTotpSetupService setupService = org.mockito.Mockito.mock(com.example.alem.service.KeycloakTotpSetupService.class);
+        AuthController controller = new AuthController(keycloakService, jwksService, setupService);
+        MockMvc customMvc = MockMvcBuilders.standaloneSetup(controller).build();
+
+        com.example.alem.dto.TotpSetupResponse resp = new com.example.alem.dto.TotpSetupResponse(
+                true,
+                "http://localhost:8180/realms/GovApps/login-actions/required-action?execution=CONFIGURE_TOTP&client_id=test-app",
+                "http://localhost:8080/api/auth/setup-totp-bridge?ticket=test-ticket",
+                "data:image/png;base64,iVBORw0KGgo...",
+                "SECRET123",
+                "aitu3",
+                "OK"
+        );
+        when(setupService.initiateTotpSetup("aitu3", "password")).thenReturn(resp);
+
+        customMvc.perform(post("/api/auth/setup-totp-link")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username": "aitu3", "password": "password"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.direct_qr_url").value("http://localhost:8180/realms/GovApps/login-actions/required-action?execution=CONFIGURE_TOTP&client_id=test-app"))
+                .andExpect(jsonPath("$.bridge_url").value("http://localhost:8080/api/auth/setup-totp-bridge?ticket=test-ticket"))
+                .andExpect(jsonPath("$.qr_code_base64").value("data:image/png;base64,iVBORw0KGgo..."))
+                .andExpect(jsonPath("$.totp_secret").value("SECRET123"));
+    }
 }

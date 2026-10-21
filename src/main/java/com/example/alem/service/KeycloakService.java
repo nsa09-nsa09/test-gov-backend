@@ -52,14 +52,21 @@ public class KeycloakService {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final KeycloakTotpSetupService keycloakTotpSetupService;
 
     private final AtomicReference<String> cachedAdminToken = new AtomicReference<>(null);
     private volatile long adminTokenExpiry = 0;
 
-    public KeycloakService() {
+    @org.springframework.beans.factory.annotation.Autowired
+    public KeycloakService(KeycloakTotpSetupService keycloakTotpSetupService) {
         this.restClient = RestClient.builder().build();
         this.objectMapper = new ObjectMapper()
                 .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        this.keycloakTotpSetupService = keycloakTotpSetupService;
+    }
+
+    public KeycloakService() {
+        this(null);
     }
 
     // --- Admin Token with Caching ---
@@ -216,6 +223,20 @@ public class KeycloakService {
                 try {
                     Check2faResponse status = check2FA(req.username());
                     if (status.needs2faSetup()) {
+                        if (keycloakTotpSetupService != null && req.password() != null && !req.password().isBlank()) {
+                            try {
+                                TotpSetupResponse setupResp = keycloakTotpSetupService.initiateTotpSetup(req.username(), req.password());
+                                throw new AuthException(
+                                        "Для вашего аккаунта требуется настройка 2FA (QR-код сформирован).",
+                                        HttpStatus.UNAUTHORIZED,
+                                        setupResp
+                                );
+                            } catch (AuthException ae) {
+                                throw ae;
+                            } catch (Exception e) {
+                                log.warn("Не удалось автоматически сгенерировать QR-код для '{}': {}", req.username(), e.getMessage());
+                            }
+                        }
                         msg = "Для вашего аккаунта включена двухфакторная аутентификация. Нажмите 'Настроить 2FA' и отсканируйте QR-код в Google Authenticator.";
                     } else if (status.requiredActions() != null && status.requiredActions().contains("UPDATE_PASSWORD")) {
                         msg = "Для аккаунта требуется сменить временный пароль в Keycloak (отключите опцию 'Temporary' в Keycloak Admin Console).";
@@ -224,6 +245,8 @@ public class KeycloakService {
                     } else {
                         msg = "Аккаунт не полностью настроен в Keycloak.";
                     }
+                } catch (AuthException ae) {
+                    throw ae;
                 } catch (Exception e) {
                     msg = "Аккаунт не полностью настроен в Keycloak.";
                 }

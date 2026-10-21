@@ -17,7 +17,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthException.class)
     public ResponseEntity<ApiResponse> handleAuthException(AuthException ex) {
         return ResponseEntity.status(ex.getStatus())
-                .body(ApiResponse.error(ex.getMessage()));
+                .body(new ApiResponse(false, ex.getMessage(), ex.getData()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
