@@ -3,8 +3,10 @@ package com.example.alem.controller;
 import com.example.alem.dto.*;
 import com.example.alem.service.JwksService;
 import com.example.alem.service.KeycloakService;
+import com.example.alem.service.KeycloakTotpApiService;
 import com.example.alem.service.KeycloakTotpSetupService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -22,18 +24,17 @@ public class AuthController {
     private final KeycloakService keycloakService;
     private final JwksService jwksService;
     private final KeycloakTotpSetupService keycloakTotpSetupService;
+    private final KeycloakTotpApiService keycloakTotpApiService;
 
-    public AuthController(KeycloakService keycloakService, JwksService jwksService) {
-        this(keycloakService, jwksService, null);
-    }
-
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     public AuthController(KeycloakService keycloakService,
                           JwksService jwksService,
-                          KeycloakTotpSetupService keycloakTotpSetupService) {
+                          @Autowired(required = false) KeycloakTotpSetupService keycloakTotpSetupService,
+                          KeycloakTotpApiService keycloakTotpApiService) {
         this.keycloakService = keycloakService;
         this.jwksService = jwksService;
         this.keycloakTotpSetupService = keycloakTotpSetupService;
+        this.keycloakTotpApiService = keycloakTotpApiService;
     }
 
     @GetMapping(value = {"/jwks", "/.well-known/jwks.json"})
@@ -53,25 +54,98 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    // --- Keycloak TOTP REST API Provider Endpoints (Native SPI) ---
+
+    @PostMapping("/2fa/totp/setup")
+    public ResponseEntity<TotpSetupResponse> setupTotpNative(@Valid @RequestBody TotpSetupRequest request) {
+        TotpSetupResponse response = keycloakTotpApiService.initiateSetup(request.username(), request.password());
+        if (response.success()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+    }
+
+    @PostMapping("/2fa/totp/confirm")
+    public ResponseEntity<TotpConfirmResponse> confirmTotpNative(@Valid @RequestBody TotpConfirmRequest request) {
+        TotpConfirmResponse response = keycloakTotpApiService.confirmSetup(
+                request.setupId(),
+                request.username(),
+                request.code(),
+                request.deviceName()
+        );
+        if (response.success()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+    }
+
+    @PostMapping("/2fa/totp/verify")
+    public ResponseEntity<ApiResponse> verifyTotpNative(@Valid @RequestBody TotpVerifyRequest request) {
+        boolean valid = keycloakTotpApiService.verifyCode(request.username(), request.code(), request.deviceName());
+        if (valid) {
+            return ResponseEntity.ok(ApiResponse.ok("Код подтвержден успешно"));
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse(false, "Неверный код TOTP", null));
+        }
+    }
+
+    @GetMapping("/2fa/totp/devices")
+    public ResponseEntity<TotpDevicesResponse> getDevicesNative(@RequestParam("username") String username) {
+        TotpDevicesResponse response = keycloakTotpApiService.getDevices(username);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/2fa/totp/devices")
+    public ResponseEntity<ApiResponse> removeDeviceNative(
+            @RequestParam("username") String username,
+            @RequestParam(value = "device_name", defaultValue = "Google Authenticator") String deviceName) {
+        boolean removed = keycloakTotpApiService.removeDevice(username, deviceName);
+        if (removed) {
+            return ResponseEntity.ok(ApiResponse.ok("Устройство успешно удалено"));
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse(false, "Не удалось удалить устройство", null));
+        }
+    }
+
+    // --- Legacy Bridge & Fallback Endpoint ---
     @PostMapping("/setup-totp-link")
     public ResponseEntity<TotpSetupResponse> setupTotpLink(@Valid @RequestBody SetupTotpLinkRequest request) {
+        // Пробуем прямой вызов Keycloak TOTP API Provider
+        try {
+            TotpSetupResponse nativeResp = keycloakTotpApiService.initiateSetup(request.username(), request.password());
+            if (nativeResp != null && nativeResp.success()) {
+                return ResponseEntity.ok(nativeResp);
+            }
+        } catch (Exception e) {
+            // fallback к bridge если провайдер вернул исключение
+        }
+
+        if (keycloakTotpSetupService == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+
         TotpSetupResponse response = keycloakTotpSetupService.initiateTotpSetup(request.username(), request.password());
 
-        // Выставляем куки для localhost, чтобы при открытии прямой ссылки браузер уже имел сессионный контекст
         HttpHeaders headers = new HttpHeaders();
-        KeycloakTotpSetupService.BridgeSession session = keycloakTotpSetupService.getSessionByTicket(
-                response.bridgeUrl().substring(response.bridgeUrl().indexOf("ticket=") + 7)
-        );
+        if (response.bridgeUrl() != null && response.bridgeUrl().contains("ticket=")) {
+            KeycloakTotpSetupService.BridgeSession session = keycloakTotpSetupService.getSessionByTicket(
+                    response.bridgeUrl().substring(response.bridgeUrl().indexOf("ticket=") + 7)
+            );
 
-        if (session != null) {
-            for (HttpCookie c : session.cookies()) {
-                ResponseCookie responseCookie = ResponseCookie.from(c.getName(), c.getValue())
-                        .path("/")
-                        .domain("localhost")
-                        .sameSite("Lax")
-                        .httpOnly(false)
-                        .build();
-                headers.add(HttpHeaders.SET_COOKIE, responseCookie.toString());
+            if (session != null) {
+                for (HttpCookie c : session.cookies()) {
+                    ResponseCookie responseCookie = ResponseCookie.from(c.getName(), c.getValue())
+                            .path("/")
+                            .domain("localhost")
+                            .sameSite("Lax")
+                            .httpOnly(false)
+                            .build();
+                    headers.add(HttpHeaders.SET_COOKIE, responseCookie.toString());
+                }
             }
         }
 
@@ -80,6 +154,9 @@ public class AuthController {
 
     @GetMapping("/setup-totp-bridge")
     public ResponseEntity<Void> setupTotpBridge(@RequestParam("ticket") String ticket) {
+        if (keycloakTotpSetupService == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
         KeycloakTotpSetupService.BridgeSession session = keycloakTotpSetupService.getSessionByTicket(ticket);
         if (session == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
