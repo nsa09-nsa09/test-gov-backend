@@ -1,8 +1,12 @@
 package com.example.alem.controller;
 
+import com.example.alem.dto.TotpConfirmResponse;
+import com.example.alem.dto.TotpSetupResponse;
 import com.example.alem.dto.VerifyTokenResponse;
 import com.example.alem.service.JwksService;
 import com.example.alem.service.KeycloakService;
+import com.example.alem.service.KeycloakTotpApiService;
+import com.example.alem.service.KeycloakTotpSetupService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +19,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.List;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -33,9 +38,15 @@ class AuthControllerTest {
     @Mock
     private JwksService jwksService;
 
+    @Mock
+    private KeycloakTotpSetupService keycloakTotpSetupService;
+
+    @Mock
+    private KeycloakTotpApiService keycloakTotpApiService;
+
     @BeforeEach
     void setUp() {
-        AuthController controller = new AuthController(keycloakService, jwksService);
+        AuthController controller = new AuthController(keycloakService, jwksService, keycloakTotpSetupService, keycloakTotpApiService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
@@ -99,11 +110,7 @@ class AuthControllerTest {
 
     @Test
     void setupTotpLink_withValidCredentials_returnsDirectQrUrl() throws Exception {
-        com.example.alem.service.KeycloakTotpSetupService setupService = org.mockito.Mockito.mock(com.example.alem.service.KeycloakTotpSetupService.class);
-        AuthController controller = new AuthController(keycloakService, jwksService, setupService);
-        MockMvc customMvc = MockMvcBuilders.standaloneSetup(controller).build();
-
-        com.example.alem.dto.TotpSetupResponse resp = new com.example.alem.dto.TotpSetupResponse(
+        TotpSetupResponse resp = new TotpSetupResponse(
                 true,
                 "http://localhost:8180/realms/GovApps/login-actions/required-action?execution=CONFIGURE_TOTP&client_id=test-app",
                 "http://localhost:8080/api/auth/setup-totp-bridge?ticket=test-ticket",
@@ -112,9 +119,9 @@ class AuthControllerTest {
                 "aitu3",
                 "OK"
         );
-        when(setupService.initiateTotpSetup("aitu3", "password")).thenReturn(resp);
+        when(keycloakTotpSetupService.initiateTotpSetup("aitu3", "password")).thenReturn(resp);
 
-        customMvc.perform(post("/api/auth/setup-totp-link")
+        mockMvc.perform(post("/api/auth/setup-totp-link")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"username": "aitu3", "password": "password"}
@@ -125,5 +132,52 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.bridge_url").value("http://localhost:8080/api/auth/setup-totp-bridge?ticket=test-ticket"))
                 .andExpect(jsonPath("$.qr_code_base64").value("data:image/png;base64,iVBORw0KGgo..."))
                 .andExpect(jsonPath("$.totp_secret").value("SECRET123"));
+    }
+
+    @Test
+    void setupTotp_returnsDirectQrBase64() throws Exception {
+        TotpSetupResponse resp = new TotpSetupResponse(
+                true,
+                "setup-123",
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+                "JBSWY3DPEHPK3PXP",
+                300L,
+                null,
+                null,
+                "aitu3",
+                "QR-код для настройки 2FA успешно сгенерирован"
+        );
+        when(keycloakTotpApiService.initiateSetup(anyString(), anyString())).thenReturn(resp);
+
+        mockMvc.perform(post("/api/auth/2fa/totp/setup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username": "aitu3", "password": "password"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.setup_id").value("setup-123"))
+                .andExpect(jsonPath("$.qr_code_base64").value("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."))
+                .andExpect(jsonPath("$.totp_secret").value("JBSWY3DPEHPK3PXP"))
+                .andExpect(jsonPath("$.expires_in_seconds").value(300));
+    }
+
+    @Test
+    void confirmTotp_returnsSuccess() throws Exception {
+        TotpConfirmResponse resp = new TotpConfirmResponse(
+                true,
+                "aitu3",
+                "TOTP успешно активирован и сохранен в Keycloak"
+        );
+        when(keycloakTotpApiService.confirmSetup(any(), any(), any(), any())).thenReturn(resp);
+
+        mockMvc.perform(post("/api/auth/2fa/totp/confirm")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"setup_id": "setup-123", "username": "aitu3", "code": "123456"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("aitu3"));
     }
 }

@@ -9,6 +9,9 @@ keycloak:
   server-url: http://localhost:8180
   realm: GovApps
   client-id: test-app
+  service-client:
+    client-id: alem-backend
+    client-secret: alem-secret-key-12345
   admin:
     realm: master
     client-id: admin-cli
