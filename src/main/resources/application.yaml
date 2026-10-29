@@ -21,3 +21,9 @@ keycloak:
 cors:
   allowed-origins:
     - http://localhost:5173
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
