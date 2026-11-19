@@ -16,7 +16,7 @@ public record VerifyTokenResponse(
     @JsonProperty("key_id")
     @Schema(example = "Xx9kQ...")
     String keyId,
-    @Schema(example = "http://localhost:8180/realms/GovApps")
+    @Schema(example = "http://localhost:18630/realms/GovApps")
     String issuer,
     @Schema(example = "b2f67ac1-...")
     String subject,

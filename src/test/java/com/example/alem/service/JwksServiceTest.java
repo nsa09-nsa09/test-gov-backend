@@ -46,7 +46,7 @@ class JwksServiceTest {
     void verifyIdToken_withValidToken_returnsSuccess() throws Exception {
         JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                 .subject("user-123")
-                .issuer("http://localhost:8180/realms/GovApps")
+                .issuer("http://localhost:18630/realms/GovApps")
                 .audience("test-app")
                 .claim("preferred_username", "testuser")
                 .claim("email", "test@example.com")
@@ -67,7 +67,7 @@ class JwksServiceTest {
         assertThat(response.algorithm()).isEqualTo("RS256");
         assertThat(response.keyId()).isEqualTo(keyId);
         assertThat(response.subject()).isEqualTo("user-123");
-        assertThat(response.issuer()).isEqualTo("http://localhost:8180/realms/GovApps");
+        assertThat(response.issuer()).isEqualTo("http://localhost:18630/realms/GovApps");
         assertThat(response.claims()).containsEntry("preferred_username", "testuser");
         assertThat(response.claims()).containsEntry("email", "test@example.com");
     }
@@ -76,7 +76,7 @@ class JwksServiceTest {
     void verifyIdToken_withExpiredToken_returnsFailure() throws Exception {
         JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                 .subject("user-123")
-                .issuer("http://localhost:8180/realms/GovApps")
+                .issuer("http://localhost:18630/realms/GovApps")
                 .issueTime(Date.from(Instant.now().minus(2, ChronoUnit.HOURS)))
                 .expirationTime(Date.from(Instant.now().minus(1, ChronoUnit.HOURS)))
                 .build();
@@ -98,7 +98,7 @@ class JwksServiceTest {
     void verifyIdToken_withTamperedSignature_returnsFailure() throws Exception {
         JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                 .subject("user-123")
-                .issuer("http://localhost:8180/realms/GovApps")
+                .issuer("http://localhost:18630/realms/GovApps")
                 .expirationTime(Date.from(Instant.now().plus(1, ChronoUnit.HOURS)))
                 .build();
 

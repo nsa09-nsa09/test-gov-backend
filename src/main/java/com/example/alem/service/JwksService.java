@@ -26,7 +26,7 @@ public class JwksService {
 
     private static final Logger log = LoggerFactory.getLogger(JwksService.class);
 
-    @Value("${keycloak.server-url:http://localhost:8180}")
+    @Value("${keycloak.server-url:http://localhost:18630}")
     private String serverUrl;
 
     @Value("${keycloak.realm:GovApps}")

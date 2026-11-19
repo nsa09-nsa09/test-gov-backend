@@ -27,7 +27,7 @@ public class KeycloakTotpApiService {
     private static final Logger log = LoggerFactory.getLogger(KeycloakTotpApiService.class);
     private static final long DEFAULT_TTL_SECONDS = 300L; // 5 минут
 
-    @Value("${keycloak.server-url:http://localhost:8180}")
+    @Value("${keycloak.server-url:http://localhost:18630}")
     private String serverUrl;
 
     @Value("${keycloak.realm:GovApps}")

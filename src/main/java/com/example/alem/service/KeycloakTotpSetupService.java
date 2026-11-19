@@ -33,7 +33,7 @@ public class KeycloakTotpSetupService {
     private static final Pattern SECRET_INPUT_PATTERN = Pattern.compile("id=\"totpSecret\"\\s+name=\"totpSecret\"\\s+value=\"([^\"]+)\"");
     private static final Pattern SUBMIT_ACTION_PATTERN = Pattern.compile("action=\"([^\"]+login-actions/required-action[^\"]*)\"");
 
-    @Value("${keycloak.server-url:http://localhost:8180}")
+    @Value("${keycloak.server-url:http://localhost:18630}")
     private String serverUrl;
 
     @Value("${keycloak.realm:GovApps}")
@@ -83,7 +83,7 @@ public class KeycloakTotpSetupService {
         try {
             // 1. Инициируем auth-запрос с kc_action=CONFIGURE_TOTP
             String authUrl = String.format(
-                    "%s/realms/%s/protocol/openid-connect/auth?client_id=%s&redirect_uri=http://localhost:5173/setup-callback.html&response_type=code&scope=openid&kc_action=CONFIGURE_TOTP",
+                    "%s/realms/%s/protocol/openid-connect/auth?client_id=%s&redirect_uri=http://localhost:18650/setup-callback.html&response_type=code&scope=openid&kc_action=CONFIGURE_TOTP",
                     serverUrl, realm, clientId
             );
 
@@ -162,7 +162,7 @@ public class KeycloakTotpSetupService {
             cleanExpiredTickets();
             ticketStore.put(ticketId, session);
 
-            String bridgeUrl = "http://localhost:8080/api/auth/setup-totp-bridge?ticket=" + ticketId;
+            String bridgeUrl = "http://localhost:18640/api/auth/setup-totp-bridge?ticket=" + ticketId;
 
             return new TotpSetupResponse(
                     true,

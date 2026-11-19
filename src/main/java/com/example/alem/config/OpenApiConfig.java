@@ -17,17 +17,17 @@ public class OpenApiConfig {
     public static final String BEARER_SCHEME = "bearerAuth";
 
     @Bean
-    public OpenAPI alemOpenApi(@Value("${server.port:8080}") int port) {
+    public OpenAPI alemOpenApi(@Value("${server.port:18640}") int port) {
         String description = """
                 Основной backend GovApps (BFF над Keycloak, клиент `test-app`): логин, регистрация,
                 обновление токенов, JWKS и 2FA (TOTP).
 
                 ### Token Exchange со second-backend
                 1. `POST /api/auth/login` → `access_token` (A): `azp=test-app`, `aud` содержит `second-backend`.
-                2. A передаётся в second-backend: `POST http://localhost:8081/api/auth/token-exchange`.
+                2. A передаётся в second-backend: `POST http://localhost:18641/api/auth/token-exchange`.
                 3. second-backend через Keycloak (RFC 8693) получает свой токен (B) с `azp=second-backend`.
 
-                Swagger second-backend: http://localhost:8081/swagger-ui.html
+                Swagger second-backend: http://localhost:18641/swagger-ui.html
                 """;
 
         return new OpenAPI()
