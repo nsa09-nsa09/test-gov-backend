@@ -294,7 +294,7 @@ public class AuthController {
             Password grant в Keycloak для клиента `test-app` (scope `openid profile email`).
             
             **Token Exchange:** полученный `access_token` (`azp=test-app`, `aud` содержит `second-backend`)
-            передайте в second-backend: `POST http://localhost:8081/api/auth/token-exchange` с телом
+            передайте в second-backend: `POST http://localhost:18641/api/auth/token-exchange` с телом
             `{"subject_token": "<access_token>"}` — в ответ придёт токен с `azp=second-backend`.
             
             Если у пользователя включена 2FA, передайте `otp`.

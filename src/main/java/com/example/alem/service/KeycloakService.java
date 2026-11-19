@@ -29,7 +29,7 @@ public class KeycloakService {
 
     private static final Logger log = LoggerFactory.getLogger(KeycloakService.class);
 
-    @Value("${keycloak.server-url:http://localhost:8180}")
+    @Value("${keycloak.server-url:http://localhost:18630}")
     private String serverUrl;
 
     @Value("${keycloak.realm:GovApps}")
@@ -170,7 +170,7 @@ public class KeycloakService {
             boolean needs2faSetup = !has2fa && configureTotpRequired;
             String setupUrl = null;
             if (needs2faSetup) {
-                setupUrl = String.format("%s/realms/%s/protocol/openid-connect/auth?client_id=%s&redirect_uri=http://localhost:5173/setup-callback.html&response_type=code&scope=openid&kc_action=CONFIGURE_TOTP",
+                setupUrl = String.format("%s/realms/%s/protocol/openid-connect/auth?client_id=%s&redirect_uri=http://localhost:18650/setup-callback.html&response_type=code&scope=openid&kc_action=CONFIGURE_TOTP",
                         serverUrl, realm, clientId);
             }
 

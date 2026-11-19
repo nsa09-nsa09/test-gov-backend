@@ -112,8 +112,8 @@ class AuthControllerTest {
     void setupTotpLink_withValidCredentials_returnsDirectQrUrl() throws Exception {
         TotpSetupResponse resp = new TotpSetupResponse(
                 true,
-                "http://localhost:8180/realms/GovApps/login-actions/required-action?execution=CONFIGURE_TOTP&client_id=test-app",
-                "http://localhost:8080/api/auth/setup-totp-bridge?ticket=test-ticket",
+                "http://localhost:18630/realms/GovApps/login-actions/required-action?execution=CONFIGURE_TOTP&client_id=test-app",
+                "http://localhost:18640/api/auth/setup-totp-bridge?ticket=test-ticket",
                 "data:image/png;base64,iVBORw0KGgo...",
                 "SECRET123",
                 "aitu3",
@@ -128,8 +128,8 @@ class AuthControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.direct_qr_url").value("http://localhost:8180/realms/GovApps/login-actions/required-action?execution=CONFIGURE_TOTP&client_id=test-app"))
-                .andExpect(jsonPath("$.bridge_url").value("http://localhost:8080/api/auth/setup-totp-bridge?ticket=test-ticket"))
+                .andExpect(jsonPath("$.direct_qr_url").value("http://localhost:18630/realms/GovApps/login-actions/required-action?execution=CONFIGURE_TOTP&client_id=test-app"))
+                .andExpect(jsonPath("$.bridge_url").value("http://localhost:18640/api/auth/setup-totp-bridge?ticket=test-ticket"))
                 .andExpect(jsonPath("$.qr_code_base64").value("data:image/png;base64,iVBORw0KGgo..."))
                 .andExpect(jsonPath("$.totp_secret").value("SECRET123"));
     }

@@ -1,12 +1,12 @@
 server:
-  port: 8080
+  port: 18640
 
 spring:
   application:
     name: alem
 
 keycloak:
-  server-url: http://localhost:8180
+  server-url: http://localhost:18630
   realm: GovApps
   client-id: test-app
   service-client:
@@ -20,7 +20,7 @@ keycloak:
 
 cors:
   allowed-origins:
-    - http://localhost:5173
+    - http://localhost:18650
 
 springdoc:
   swagger-ui:
